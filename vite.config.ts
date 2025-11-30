@@ -31,6 +31,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    preview: {
+      allowedHosts: ['rejourney.squareweb.app']
+    },
     build: mode === 'production' ? {
       target: 'esnext',
       minify: 'terser',
