@@ -1,0 +1,176 @@
+import Stripe from "https://esm.sh/stripe@14.21.0";
+
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+  apiVersion: "2024-11-20.acacia",
+});
+
+interface CheckoutRequest {
+  plan: "6months" | "12months";
+  email: string;
+  name: string;
+  phone: string;
+}
+
+// Rate limiting store (in-memory, resets on cold start)
+const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+
+// Security: Input validation
+function validateEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 254;
+}
+
+function validatePhone(phone: string): boolean {
+  // Aceita formatos: +5599xxxxxxxx ou 5599xxxxxxxx
+  const phoneRegex = /^\+?55\d{10,11}$/;
+  return phoneRegex.test(phone.replace(/[\s()-]/g, ''));
+}
+
+function sanitizeString(str: string, maxLength: number): string {
+  return str.trim().slice(0, maxLength).replace(/[<>"']/g, '');
+}
+
+function checkRateLimit(clientId: string): boolean {
+  const now = Date.now();
+  const limit = rateLimitStore.get(clientId);
+  
+  if (!limit || now > limit.resetAt) {
+    rateLimitStore.set(clientId, { count: 1, resetAt: now + 60000 }); // 1 min window
+    return true;
+  }
+  
+  // Landing page optimized: 20 req/min permite picos legítimos mantendo proteção anti-DDoS
+  // Adequado para: campanhas de marketing, IPs compartilhados, múltiplas tentativas de pagamento
+  if (limit.count >= 20) { // Max 20 requests per minute (was 5)
+    return false;
+  }
+  
+  limit.count++;
+  return true;
+}
+
+Deno.serve(async (req) => {
+  const origin = req.headers.get('origin') || '';
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:4173',
+    'https://re-journey.com',
+    'https://www.re-journey.com'
+  ];
+  
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      headers: corsHeaders,
+    });
+  }
+
+  try {
+    // Rate limiting
+    const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    if (!checkRateLimit(clientIP)) {
+      return new Response(
+        JSON.stringify({ error: 'Muitas tentativas. Aguarde 1 minuto.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { plan, email, name, phone }: CheckoutRequest = await req.json();
+
+    if (!plan || !email || !name || !phone) {
+      return new Response(
+        JSON.stringify({ error: "Dados incompletos" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!validateEmail(email)) {
+      return new Response(
+        JSON.stringify({ error: 'Email inválido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!validatePhone(phone)) {
+      return new Response(
+        JSON.stringify({ error: 'Telefone inválido. Use formato: +5599xxxxxxxxx' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Sanitize inputs
+    const safeName = sanitizeString(name, 100);
+    const safeEmail = sanitizeString(email, 254);
+    const safePhone = sanitizeString(phone, 20);
+
+    const prices = {
+      "6months": { amount: 49700, description: "Plano 6 Meses - Re-Journey" },
+      "12months": { amount: 79700, description: "Plano 12 Meses - Re-Journey" },
+    };
+
+    const selectedPrice = prices[plan];
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card", "pix"],
+      line_items: [
+        {
+          price_data: {
+            currency: "brl",
+            product_data: {
+              name: selectedPrice.description,
+            },
+            unit_amount: selectedPrice.amount,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      customer_email: safeEmail,
+      metadata: {
+        customer_name: safeName,
+        customer_phone: safePhone,
+        plan: plan,
+      },
+      payment_method_options: {
+        card: {
+          installments: {
+            enabled: true,
+            plan: {
+              count: 12,
+              interval: "month",
+              type: "fixed_count",
+            },
+          },
+        },
+      },
+      success_url: `${req.headers.get("origin")}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get("origin")}/`,
+    });
+
+    return new Response(
+      JSON.stringify({ sessionId: session.id, url: session.url }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+      }
+    );
+  } catch (error) {
+    // Security: Don't expose internal errors in production
+    const isDev = Deno.env.get('DENO_ENV') === 'development';
+    if (isDev) {
+      console.error("Stripe error:", error);
+    }
+    return new Response(
+      JSON.stringify({ error: "Erro ao criar sessão de pagamento" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+});
