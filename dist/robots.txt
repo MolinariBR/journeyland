@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://re-journey.com/sitemap.xml
+
+# Disallow admin/private areas (if any in future)
+Disallow: /api/
+Disallow: /admin/
