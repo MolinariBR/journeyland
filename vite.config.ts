@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     preview: {
-      allowedHosts: ['rejourney.squareweb.app']
+      allowedHosts: ['rejourney.squareweb.app', 'journey.squareweb.app']
     },
     build: mode === 'production' ? {
       target: 'esnext',
