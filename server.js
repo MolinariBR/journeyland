@@ -265,8 +265,19 @@ app.post('/api/capture-payment', async (req, res) => {
 const distPath = path.join(__dirname, 'dist');
 app.use(express.static(distPath));
 
-// SPA fallback - serve index.html for all other routes
+// Improved SPA fallback:
+// - If the request looks like an asset (starts with /assets/ or has a file extension),
+//   return 404 so proxies or browsers don't receive index.html with wrong MIME type.
+// - Otherwise, serve index.html for client-side routes.
 app.get('*', (req, res) => {
+  const reqPath = req.path || '';
+  const ext = path.extname(reqPath);
+
+  if (reqPath.startsWith('/assets/') || ext) {
+    console.warn(`Static asset not found: ${reqPath} -> returning 404`);
+    return res.sendStatus(404);
+  }
+
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
