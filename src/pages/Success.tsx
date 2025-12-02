@@ -1,73 +1,47 @@
 import { useEffect, useState } from "react";
-import {CheckCircle, Loader2, XCircle} from 'lucide-react';
+import { CheckCircle, Loader2, MessageCircle } from 'lucide-react';
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 
+// WhatsApp configuration
+const WHATSAPP_NUMBER = '5599913397978';
+const WHATSAPP_MESSAGE = encodeURIComponent('Olá! Acabei de assinar o Re-Journey.');
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MESSAGE}`;
+
 export const Success = () => {
-  const [validating, setValidating] = useState(true);
-  const [isValid, setIsValid] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(5);
+  const [isValidOrder, setIsValidOrder] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const capturePayment = async () => {
-      const params = new URLSearchParams(window.location.search);
-      
-      // Check for PayPal token (returned after approval)
-      const paypalToken = params.get('token');
-      const payerId = params.get('PayerID');
-      
-      // Also support legacy Stripe session_id for backwards compatibility
-      const stripeSessionId = params.get('session_id');
+    const params = new URLSearchParams(window.location.search);
+    const orderNSU = params.get('order');
 
-      if (paypalToken && payerId) {
-        // PayPal flow - capture the payment
-        try {
-          const response = await fetch('/api/capture-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: paypalToken })
-          });
+    // If there's an order parameter, it's a valid redirect from InfinitePay
+    if (orderNSU) {
+      setIsValidOrder(true);
+      setChecking(false);
 
-          const data = await response.json();
-
-          if (data.success) {
-            setIsValid(true);
-            setValidating(false);
-            
-            // Redirect to WhatsApp after successful capture
-            setTimeout(() => {
-              window.location.href = "https://wa.me/559991339799?text=Olá!%20Acabei%20de%20concluir%20meu%20pagamento%20no%20Re-Journey";
-            }, 3000);
-          } else {
-            setError(data.error || "Erro ao processar pagamento");
-            setIsValid(false);
-            setValidating(false);
+      // Start countdown to WhatsApp
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            window.location.href = WHATSAPP_URL;
+            return 0;
           }
-        } catch (err) {
-          console.error("Capture error:", err);
-          setError("Erro ao processar pagamento. Entre em contato conosco.");
-          setIsValid(false);
-          setValidating(false);
-        }
-      } else if (stripeSessionId) {
-        // Legacy Stripe flow
-        setIsValid(true);
-        setValidating(false);
-        
-        setTimeout(() => {
-          window.location.href = "https://wa.me/559991339799?text=Olá!%20Acabei%20de%20concluir%20meu%20pagamento%20no%20Re-Journey";
-        }, 3000);
-      } else {
-        // No valid payment parameters
-        setIsValid(false);
-        setValidating(false);
-      }
-    };
+          return prev - 1;
+        });
+      }, 1000);
 
-    capturePayment();
+      return () => clearInterval(timer);
+    } else {
+      setChecking(false);
+      setIsValidOrder(false);
+    }
   }, []);
 
-  if (validating) {
+  if (checking) {
     return (
       <div className="min-h-screen bg-[#121212] text-[#E0E0E0] flex items-center justify-center">
         <Loader2 className="w-12 h-12 text-gray-400 animate-spin" />
@@ -75,36 +49,26 @@ export const Success = () => {
     );
   }
 
-  if (!isValid) {
+  if (!isValidOrder) {
     return (
       <div className="min-h-screen bg-[#121212] text-[#E0E0E0]">
         <Navbar />
         <div className="container mx-auto px-6 pt-32 pb-20 text-center">
-          <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
-            {error ? <XCircle className="w-12 h-12 text-red-500" /> : <span className="text-4xl">⚠️</span>}
+          <div className="w-20 h-20 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl">⚠️</span>
           </div>
           <h1 className="text-4xl font-bold text-[#F5F5F5] mb-4">
-            {error ? "Erro no Pagamento" : "Acesso Inválido"}
+            Acesso Inválido
           </h1>
           <p className="text-xl text-gray-400 mb-8">
-            {error || "Esta página só pode ser acessada após um pagamento válido."}
+            Esta página só pode ser acessada após um pagamento válido.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="/"
-              className="inline-block px-8 py-4 bg-[#E0E0E0] text-[#121212] font-semibold rounded-lg hover:bg-white transition-all"
-            >
-              Voltar para Home
-            </a>
-            {error && (
-              <a
-                href="https://wa.me/559991339799?text=Olá!%20Tive%20um%20problema%20no%20pagamento%20do%20Re-Journey"
-                className="inline-block px-8 py-4 border border-gray-600 text-gray-300 font-semibold rounded-lg hover:bg-[#1E1E1E] transition-all"
-              >
-                Falar com Suporte
-              </a>
-            )}
-          </div>
+          <a
+            href="/"
+            className="inline-block px-8 py-4 bg-[#E0E0E0] text-[#121212] font-semibold rounded-lg hover:bg-white transition-all"
+          >
+            Voltar para Home
+          </a>
         </div>
         <Footer />
       </div>
@@ -115,23 +79,47 @@ export const Success = () => {
     <div className="min-h-screen bg-[#121212] text-[#E0E0E0]">
       <Navbar />
       <div className="container mx-auto px-6 pt-32 pb-20 text-center">
-        <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-6" aria-hidden="true" />
-        <h1 className="text-4xl font-bold text-[#F5F5F5] mb-4">
-          Pagamento Confirmado!
+        <div className="w-24 h-24 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-8">
+          <CheckCircle className="w-14 h-14 text-green-500" aria-hidden="true" />
+        </div>
+        
+        <h1 className="text-4xl md:text-5xl font-bold text-[#F5F5F5] mb-4">
+          Pagamento Confirmado! 🎉
         </h1>
-        <p className="text-xl text-gray-400 mb-8">
-          Você será redirecionado para o WhatsApp em instantes...
+        
+        <p className="text-xl text-gray-400 mb-8 max-w-lg mx-auto">
+          Obrigado por assinar o Re-Journey! Você será redirecionado para o WhatsApp em{" "}
+          <span className="text-white font-bold">{countdown}</span> segundos...
         </p>
-        <p className="text-sm text-gray-500">
-          Caso não seja redirecionado automaticamente,{" "}
+
+        <div className="space-y-4">
           <a
-            href="https://wa.me/559991339799?text=Olá!%20Acabei%20de%20concluir%20meu%20pagamento%20no%20Re-Journey"
-            className="text-gray-300 underline hover:text-white"
-            aria-label="Abrir WhatsApp manualmente"
+            href={WHATSAPP_URL}
+            className="inline-flex items-center gap-3 px-8 py-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-500 transition-all shadow-lg"
           >
-            clique aqui
+            <MessageCircle className="w-6 h-6" />
+            Ir para o WhatsApp agora
           </a>
-        </p>
+          
+          <p className="text-sm text-gray-500">
+            Caso não seja redirecionado automaticamente,{" "}
+            <a
+              href={WHATSAPP_URL}
+              className="text-gray-300 underline hover:text-white"
+            >
+              clique aqui
+            </a>
+          </p>
+        </div>
+
+        <div className="mt-12 p-6 bg-[#1A1A1A] rounded-xl border border-[#2A2A2A] max-w-md mx-auto">
+          <h3 className="text-lg font-semibold text-[#F5F5F5] mb-2">
+            Próximos passos
+          </h3>
+          <p className="text-gray-400 text-sm">
+            No WhatsApp, você receberá seu acesso à plataforma e todas as instruções para começar sua jornada rumo ao Revalida!
+          </p>
+        </div>
       </div>
       <Footer />
     </div>

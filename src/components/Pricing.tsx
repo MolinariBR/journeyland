@@ -2,10 +2,7 @@ import {Check} from 'lucide-react';
 import { useState } from 'react';
 
 export const Pricing = () => {
-  const [loading, setLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<'6months' | '12months' | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const baseFeatures = [
     'Acesso completo ao banco de questões',
@@ -24,32 +21,13 @@ export const Pricing = () => {
     'Suporte prioritário'
   ];
 
-  const handlePlanSelect = (plan: '6months' | '12months') => {
-    setSelectedPlan(plan);
-    setShowModal(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedPlan) return;
-
-    setLoading(true);
+  const handleCheckout = async (plan: '6months' | '12months') => {
+    setLoadingPlan(plan);
     try {
-      // Use PayPal checkout via API route
-      // Normalize phone to +55XXXXXXXXXXX expected by server
-      const digits = formData.phone.replace(/\D/g, '');
-      const prefixed = digits.startsWith('55') ? digits : `55${digits}`;
-      const normalizedPhone = `+${prefixed}`;
-
       const response = await fetch('/api/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plan: selectedPlan,
-          name: formData.name,
-          email: formData.email,
-          phone: normalizedPhone
-        })
+        body: JSON.stringify({ plan })
       });
 
       const data = await response.json();
@@ -63,19 +41,17 @@ export const Pricing = () => {
         if (typeof window !== 'undefined' && (window as any).gtag) {
           (window as any).gtag('event', 'begin_checkout', {
             currency: 'BRL',
-            value: selectedPlan === '6months' ? 497 : 797,
-            items: [{ item_name: `Re-Journey ${selectedPlan}` }]
+            value: plan === '6months' ? 397 : 797,
+            items: [{ item_name: `Re-Journey ${plan}` }]
           });
         }
         window.location.href = data.url;
       }
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Erro:', error);
-      }
+      console.error('Erro:', error);
       alert('Erro ao processar pagamento. Por favor, tente novamente ou entre em contato com o suporte.');
     } finally {
-      setLoading(false);
+      setLoadingPlan(null);
     }
   };
 
@@ -118,10 +94,11 @@ export const Pricing = () => {
               </ul>
 
               <button 
-                onClick={() => handlePlanSelect('6months')}
-                className="w-full py-4 bg-[#E0E0E0] text-[#121212] font-semibold rounded-lg hover:bg-white transition-all"
+                onClick={() => handleCheckout('6months')}
+                disabled={loadingPlan === '6months'}
+                className="w-full py-4 bg-[#E0E0E0] text-[#121212] font-semibold rounded-lg hover:bg-white transition-all disabled:opacity-50"
               >
-                Começar Agora
+                {loadingPlan === '6months' ? 'Redirecionando...' : 'Começar Agora'}
               </button>
             </div>
 
@@ -158,10 +135,11 @@ export const Pricing = () => {
               </ul>
 
               <button 
-                onClick={() => handlePlanSelect('12months')}
-                className="w-full py-4 bg-white text-[#121212] font-semibold rounded-lg hover:bg-gray-200 transition-all shadow-lg"
+                onClick={() => handleCheckout('12months')}
+                disabled={loadingPlan === '12months'}
+                className="w-full py-4 bg-white text-[#121212] font-semibold rounded-lg hover:bg-gray-200 transition-all shadow-lg disabled:opacity-50"
               >
-                Começar Agora
+                {loadingPlan === '12months' ? 'Redirecionando...' : 'Começar Agora'}
               </button>
             </div>
           </div>
@@ -171,57 +149,6 @@ export const Pricing = () => {
           </p>
         </div>
       </section>
-
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#161616] border border-[#1F1F1F] rounded-xl p-8 max-w-md w-full">
-            <h3 className="text-2xl font-bold text-[#F5F5F5] mb-6">Complete seu cadastro</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Nome completo"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="w-full px-4 py-3 bg-[#1E1E1E] border border-[#333] rounded-lg text-white focus:border-gray-500 outline-none"
-              />
-              <input
-                type="email"
-                placeholder="E-mail"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="w-full px-4 py-3 bg-[#1E1E1E] border border-[#333] rounded-lg text-white focus:border-gray-500 outline-none"
-              />
-              <input
-                type="tel"
-                placeholder="WhatsApp (com DDD)"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                className="w-full px-4 py-3 bg-[#1E1E1E] border border-[#333] rounded-lg text-white focus:border-gray-500 outline-none"
-              />
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-3 border border-[#333] text-gray-300 rounded-lg hover:bg-[#1E1E1E] transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 py-3 bg-[#E0E0E0] text-[#121212] font-semibold rounded-lg hover:bg-white transition-all disabled:opacity-50"
-                >
-                  {loading ? 'Processando...' : 'Continuar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 };

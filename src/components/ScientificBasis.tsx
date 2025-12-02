@@ -5,17 +5,17 @@ const papers = [
   {
     title: "Case-Based Learning (CBL)",
     desc: "Base da construção de enunciados clínicos realistas.",
-    link: "https://doi.org/10.3109/0142159X.2012.715706"
+    link: "https://www.queensu.ca/ctl/resources/instructors/instructional-strategies/case-based-learning"
   },
   {
     title: "Teoria da Carga Cognitiva",
     desc: "Calibração de dificuldade e ergonomia cognitiva.",
-    link: "https://doi.org/10.1007/s10648-010-9124-4"
+    link: "https://www.sciencedirect.com/science/chapter/bookseries/abs/pii/B9780123876911000028"
   },
   {
     title: "Spaced Repetition",
     desc: "Fundamenta o sistema de revisões do aluno.",
-    link: "https://doi.org/10.1037/0033-295X.114.3.715"
+    link: "https://pubmed.ncbi.nlm.nih.gov/39250798/"
   },
   {
     title: "Test-Enhanced Learning",
@@ -30,7 +30,7 @@ const papers = [
   {
     title: "Item Response Theory (TRI)",
     desc: "Modelo interno de calibração de dificuldade.",
-    link: "https://doi.org/10.4324/9781315820948"
+    link: "https://www.ime.unicamp.br/~cnaber/Baker_Book.pdf"
   }
 ];
 
