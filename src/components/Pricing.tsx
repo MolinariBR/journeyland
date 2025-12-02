@@ -31,7 +31,7 @@ export const Pricing = () => {
     setLoading(true);
     try {
       // Use PayPal checkout function
-      const response = await lumi.functions.invoke('create-checkout-paypal', {
+      const response = await lumi.functions.invoke('create-checkout', {
         method: 'POST',
         body: {
           plan: selectedPlan,

@@ -1,15 +1,23 @@
-// @deno-types="https://deno.land/x/stripe@14.21.0/mod.d.ts"
-import Stripe from "https://esm.sh/stripe@14.21.0";
-
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-  apiVersion: "2024-11-20.acacia",
-});
+// PayPal Checkout - Deno Serverless Function
+// @ts-nocheck
 
 interface CheckoutRequest {
   plan: "6months" | "12months";
   email: string;
   name: string;
   phone: string;
+}
+
+interface PayPalTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+interface PayPalOrderResponse {
+  id: string;
+  status: string;
+  links: Array<{ href: string; rel: string; method: string }>;
 }
 
 // Rate limiting store (in-memory, resets on cold start)
@@ -22,7 +30,6 @@ function validateEmail(email: string): boolean {
 }
 
 function validatePhone(phone: string): boolean {
-  // Aceita formatos: +5599xxxxxxxx ou 5599xxxxxxxx
   const phoneRegex = /^\+?55\d{10,11}$/;
   return phoneRegex.test(phone.replace(/[\s()-]/g, ''));
 }
@@ -36,13 +43,11 @@ function checkRateLimit(clientId: string): boolean {
   const limit = rateLimitStore.get(clientId);
   
   if (!limit || now > limit.resetAt) {
-    rateLimitStore.set(clientId, { count: 1, resetAt: now + 60000 }); // 1 min window
+    rateLimitStore.set(clientId, { count: 1, resetAt: now + 60000 });
     return true;
   }
   
-  // Landing page optimized: 20 req/min permite picos legítimos mantendo proteção anti-DDoS
-  // Adequado para: campanhas de marketing, IPs compartilhados, múltiplas tentativas de pagamento
-  if (limit.count >= 20) { // Max 20 requests per minute (was 5)
+  if (limit.count >= 20) {
     return false;
   }
   
@@ -50,13 +55,94 @@ function checkRateLimit(clientId: string): boolean {
   return true;
 }
 
-Deno.serve(async (req) => {
+// Get PayPal Access Token
+async function getPayPalAccessToken(): Promise<string> {
+  const clientId = Deno.env.get("PAYPAL_CLIENT_ID") || "";
+  const clientSecret = Deno.env.get("PAYPAL_CLIENT_SECRET") || "";
+  const mode = Deno.env.get("PAYPAL_MODE") || "sandbox";
+  
+  const baseUrl = mode === "live" 
+    ? "https://api-m.paypal.com" 
+    : "https://api-m.sandbox.paypal.com";
+
+  const auth = btoa(`${clientId}:${clientSecret}`);
+  
+  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  });
+
+  if (!response.ok) {
+    throw new Error(`PayPal auth failed: ${response.status}`);
+  }
+
+  const data: PayPalTokenResponse = await response.json();
+  return data.access_token;
+}
+
+// Create PayPal Order
+async function createPayPalOrder(
+  accessToken: string,
+  amount: string,
+  description: string,
+  returnUrl: string,
+  cancelUrl: string,
+  metadata: Record<string, string>
+): Promise<PayPalOrderResponse> {
+  const mode = Deno.env.get("PAYPAL_MODE") || "sandbox";
+  const baseUrl = mode === "live" 
+    ? "https://api-m.paypal.com" 
+    : "https://api-m.sandbox.paypal.com";
+
+  const response = await fetch(`${baseUrl}/v2/checkout/orders`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "Prefer": "return=representation",
+    },
+    body: JSON.stringify({
+      intent: "CAPTURE",
+      purchase_units: [{
+        amount: {
+          currency_code: "BRL",
+          value: amount,
+        },
+        description: description,
+        custom_id: JSON.stringify(metadata),
+      }],
+      application_context: {
+        brand_name: "Re-Journey",
+        locale: "pt-BR",
+        landing_page: "LOGIN",
+        user_action: "PAY_NOW",
+        return_url: returnUrl,
+        cancel_url: cancelUrl,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`PayPal order creation failed: ${error}`);
+  }
+
+  return await response.json();
+}
+
+Deno.serve(async (req: Request) => {
   const origin = req.headers.get('origin') || '';
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:4173',
     'https://re-journey.com',
-    'https://www.re-journey.com'
+    'https://www.re-journey.com',
+    'https://journey.squareweb.app',
+    'https://rejourney.squareweb.app'
   ];
   
   const corsHeaders = {
@@ -66,9 +152,7 @@ Deno.serve(async (req) => {
   };
 
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: corsHeaders,
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -110,51 +194,43 @@ Deno.serve(async (req) => {
     const safePhone = sanitizeString(phone, 20);
 
     const prices = {
-      "6months": { amount: 49700, description: "Plano 6 Meses - Re-Journey" },
-      "12months": { amount: 79700, description: "Plano 12 Meses - Re-Journey" },
+      "6months": { amount: "497.00", description: "Plano 6 Meses - Re-Journey" },
+      "12months": { amount: "797.00", description: "Plano 12 Meses - Re-Journey" },
     };
 
     const selectedPrice = prices[plan];
+    const requestOrigin = req.headers.get("origin") || "https://re-journey.com";
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "brl",
-            product_data: {
-              name: selectedPrice.description,
-            },
-            unit_amount: selectedPrice.amount,
-          },
-          quantity: 1,
-        },
-      ],
-      mode: "payment",
-      customer_email: safeEmail,
-      metadata: {
+    // Get PayPal access token
+    const accessToken = await getPayPalAccessToken();
+
+    // Create PayPal order
+    const order = await createPayPalOrder(
+      accessToken,
+      selectedPrice.amount,
+      selectedPrice.description,
+      `${requestOrigin}/success?paypal_order_id={ORDER_ID}`,
+      `${requestOrigin}/`,
+      {
         customer_name: safeName,
+        customer_email: safeEmail,
         customer_phone: safePhone,
         plan: plan,
-      },
-      payment_method_options: {
-        card: {
-          installments: {
-            enabled: true,
-            plan: {
-              count: 12,
-              interval: "month",
-              type: "fixed_count",
-            },
-          },
-        },
-      },
-      success_url: `${req.headers.get("origin")}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/`,
-    });
+      }
+    );
+
+    // Find approval URL
+    const approvalLink = order.links.find(link => link.rel === "approve");
+    
+    if (!approvalLink) {
+      throw new Error("PayPal approval URL not found");
+    }
 
     return new Response(
-      JSON.stringify({ sessionId: session.id, url: session.url }),
+      JSON.stringify({ 
+        orderId: order.id, 
+        url: approvalLink.href 
+      }),
       {
         status: 200,
         headers: {
@@ -164,10 +240,9 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    // Security: Don't expose internal errors in production
     const isDev = Deno.env.get('DENO_ENV') === 'development';
     if (isDev) {
-      console.error("Stripe error:", error);
+      console.error("PayPal error:", error);
     }
     return new Response(
       JSON.stringify({ error: "Erro ao criar sessão de pagamento" }),
