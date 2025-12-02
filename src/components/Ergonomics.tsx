@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import {Eye, Monitor, Moon} from 'lucide-react';
+import {Eye, Moon} from 'lucide-react';
 
 export const Ergonomics = () => {
   return (
