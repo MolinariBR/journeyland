@@ -1,0 +1,150 @@
+// PayPal Capture Payment - Deno Serverless Function
+// @ts-nocheck
+
+interface CaptureRequest {
+  orderId: string;
+}
+
+interface PayPalTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+// Get PayPal Access Token
+async function getPayPalAccessToken(): Promise<string> {
+  const clientId = Deno.env.get("PAYPAL_CLIENT_ID") || "";
+  const clientSecret = Deno.env.get("PAYPAL_CLIENT_SECRET") || "";
+  const mode = Deno.env.get("PAYPAL_MODE") || "sandbox";
+  
+  const baseUrl = mode === "live" 
+    ? "https://api-m.paypal.com" 
+    : "https://api-m.sandbox.paypal.com";
+
+  const auth = btoa(`${clientId}:${clientSecret}`);
+  
+  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  });
+
+  if (!response.ok) {
+    throw new Error(`PayPal auth failed: ${response.status}`);
+  }
+
+  const data: PayPalTokenResponse = await response.json();
+  return data.access_token;
+}
+
+// Capture PayPal Order
+async function capturePayPalOrder(accessToken: string, orderId: string) {
+  const mode = Deno.env.get("PAYPAL_MODE") || "sandbox";
+  const baseUrl = mode === "live" 
+    ? "https://api-m.paypal.com" 
+    : "https://api-m.sandbox.paypal.com";
+
+  const response = await fetch(`${baseUrl}/v2/checkout/orders/${orderId}/capture`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`PayPal capture failed: ${error}`);
+  }
+
+  return await response.json();
+}
+
+Deno.serve(async (req: Request) => {
+  const origin = req.headers.get('origin') || '';
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:4173',
+    'https://re-journey.com',
+    'https://www.re-journey.com',
+    'https://journey.squareweb.app',
+    'https://rejourney.squareweb.app'
+  ];
+  
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { orderId }: CaptureRequest = await req.json();
+
+    if (!orderId) {
+      return new Response(
+        JSON.stringify({ error: "Order ID é obrigatório" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get PayPal access token
+    const accessToken = await getPayPalAccessToken();
+
+    // Capture the order
+    const captureResult = await capturePayPalOrder(accessToken, orderId);
+
+    if (captureResult.status === "COMPLETED") {
+      // Extract metadata from custom_id
+      let metadata = {};
+      try {
+        const customId = captureResult.purchase_units?.[0]?.payments?.captures?.[0]?.custom_id;
+        if (customId) {
+          metadata = JSON.parse(customId);
+        }
+      } catch {
+        // Ignore parse errors
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          status: captureResult.status,
+          transactionId: captureResult.purchase_units?.[0]?.payments?.captures?.[0]?.id,
+          metadata
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    } else {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          status: captureResult.status,
+          error: "Pagamento não foi completado"
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+  } catch (error) {
+    const isDev = Deno.env.get('DENO_ENV') === 'development';
+    if (isDev) {
+      console.error("PayPal capture error:", error);
+    }
+    return new Response(
+      JSON.stringify({ error: "Erro ao capturar pagamento" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+});

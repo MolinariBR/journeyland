@@ -30,7 +30,8 @@ export const Pricing = () => {
 
     setLoading(true);
     try {
-      const response = await lumi.functions.invoke('create-checkout', {
+      // Use PayPal checkout function
+      const response = await lumi.functions.invoke('create-checkout-paypal', {
         method: 'POST',
         body: {
           plan: selectedPlan,
@@ -43,7 +44,7 @@ export const Pricing = () => {
         if (typeof window !== 'undefined' && (window as any).gtag) {
           (window as any).gtag('event', 'begin_checkout', {
             currency: 'BRL',
-            value: selectedPlan === '6months' ? 397 : 797,
+            value: selectedPlan === '6months' ? 497 : 797,
             items: [{ item_name: `Re-Journey ${selectedPlan}` }]
           });
         }
