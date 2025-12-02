@@ -5,7 +5,7 @@ export const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#121212] text-[#E0E0E0] pt-20">
       {/* Background Gradient */}
-      <div className="absolute inset-0 opacity-40 pointer-events-none bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f0f]" />
+      <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-[#1A1A1A] via-[#151515] to-[#0F0F0F]" />
       
       {/* Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#121212]/50 to-[#121212] z-10" />
