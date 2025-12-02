@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "stripe": "https://esm.sh/stripe@14.21.0"
+  },
+  "tasks": {
+    "dev": "deno run --allow-all create-checkout"
+  },
+  "compilerOptions": {
+    "lib": ["deno.window"]
+  }
+}
