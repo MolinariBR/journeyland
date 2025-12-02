@@ -4,17 +4,10 @@ import {ArrowRight, Brain, Activity, BarChart3, Clock, Layers, ShieldCheck, Zap}
 export const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#121212] text-[#E0E0E0] pt-20">
-      {/* Background Texture */}
-      <div className="absolute inset-0 opacity-40 pointer-events-none" 
-           style={{ 
-             backgroundImage: `url("https://static.lumi.new/4b/4bfcefa6fc906c3e622022ed98943780.png")`,
-             backgroundSize: 'cover',
-             backgroundPosition: 'center',
-             backgroundBlendMode: 'overlay'
-           }} 
-      />
+      {/* Background Gradient */}
+      <div className="absolute inset-0 opacity-40 pointer-events-none bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f0f]" />
       
-      {/* Generated Image Overlay - will be replaced with actual URL if available */}
+      {/* Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#121212]/50 to-[#121212] z-10" />
 
       <div className="container mx-auto px-6 relative z-20 text-center max-w-5xl">

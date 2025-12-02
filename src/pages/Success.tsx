@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {CheckCircle, Loader2, XCircle} from 'lucide-react';
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
-import { lumi } from "../lib/lumi";
 
 export const Success = () => {
   const [validating, setValidating] = useState(true);
@@ -23,12 +22,15 @@ export const Success = () => {
       if (paypalToken && payerId) {
         // PayPal flow - capture the payment
         try {
-          const response = await lumi.functions.invoke('capture-payment', {
+          const response = await fetch('/api/capture-payment', {
             method: 'POST',
-            body: { orderId: paypalToken }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: paypalToken })
           });
 
-          if (response.success) {
+          const data = await response.json();
+
+          if (data.success) {
             setIsValid(true);
             setValidating(false);
             
@@ -37,7 +39,7 @@ export const Success = () => {
               window.location.href = "https://wa.me/559991339799?text=Olá!%20Acabei%20de%20concluir%20meu%20pagamento%20no%20Re-Journey";
             }, 3000);
           } else {
-            setError(response.error || "Erro ao processar pagamento");
+            setError(data.error || "Erro ao processar pagamento");
             setIsValid(false);
             setValidating(false);
           }

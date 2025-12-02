@@ -1,6 +1,5 @@
 import {Check} from 'lucide-react';
 import { useState } from 'react';
-import { lumi } from '../lib/lumi';
 
 export const Pricing = () => {
   const [loading, setLoading] = useState(false);
@@ -30,16 +29,23 @@ export const Pricing = () => {
 
     setLoading(true);
     try {
-      // Use PayPal checkout function
-      const response = await lumi.functions.invoke('create-checkout', {
+      // Use PayPal checkout via API route
+      const response = await fetch('/api/create-checkout', {
         method: 'POST',
-        body: {
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           plan: selectedPlan,
           ...formData
-        }
+        })
       });
 
-      if (response.url) {
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao processar pagamento');
+      }
+
+      if (data.url) {
         // Track conversion event (placeholder for future analytics)
         if (typeof window !== 'undefined' && (window as any).gtag) {
           (window as any).gtag('event', 'begin_checkout', {
@@ -48,7 +54,7 @@ export const Pricing = () => {
             items: [{ item_name: `Re-Journey ${selectedPlan}` }]
           });
         }
-        window.location.href = response.url;
+        window.location.href = data.url;
       }
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
