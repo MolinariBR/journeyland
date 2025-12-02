@@ -7,14 +7,20 @@ export const Pricing = () => {
   const [selectedPlan, setSelectedPlan] = useState<'6months' | '12months' | null>(null);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
 
-  const features = [
+  const baseFeatures = [
     'Acesso completo ao banco de questões',
     '+30 a 50 novas questões diárias',
     'Motor adaptativo de aprendizagem',
     '6 níveis progressivos de dificuldade',
     'Simulados realistas INEP',
     'Análise detalhada de desempenho',
-    'Sistema de revisão espaçada',
+    'Sistema de revisão espaçada'
+  ];
+
+  const features6 = baseFeatures;
+  const features12 = [
+    ...baseFeatures,
+    'Grupo Exclusivo',
     'Suporte prioritário'
   ];
 
@@ -30,12 +36,19 @@ export const Pricing = () => {
     setLoading(true);
     try {
       // Use PayPal checkout via API route
+      // Normalize phone to +55XXXXXXXXXXX expected by server
+      const digits = formData.phone.replace(/\D/g, '');
+      const prefixed = digits.startsWith('55') ? digits : `55${digits}`;
+      const normalizedPhone = `+${prefixed}`;
+
       const response = await fetch('/api/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           plan: selectedPlan,
-          ...formData
+          name: formData.name,
+          email: formData.email,
+          phone: normalizedPhone
         })
       });
 
@@ -93,12 +106,15 @@ export const Pricing = () => {
               </div>
 
               <ul className="space-y-4 mb-8">
-                {features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-300">{feature}</span>
-                  </li>
-                ))}
+                {features6.map((feature, idx) => {
+                  const iconColor = (feature === 'Suporte prioritário' || feature === 'Grupo Exclusivo') ? 'text-yellow-400' : 'text-green-500';
+                  return (
+                    <li key={idx} className="flex items-start gap-3">
+                      <Check className={`w-5 h-5 ${iconColor} flex-shrink-0 mt-0.5`} />
+                      <span className="text-gray-300">{feature}</span>
+                    </li>
+                  );
+                })}
               </ul>
 
               <button 
@@ -130,12 +146,15 @@ export const Pricing = () => {
               </div>
 
               <ul className="space-y-4 mb-8">
-                {features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-300">{feature}</span>
-                  </li>
-                ))}
+                {features12.map((feature, idx) => {
+                  const iconColor = (feature === 'Suporte prioritário' || feature === 'Grupo Exclusivo') ? 'text-yellow-400' : 'text-green-500';
+                  return (
+                    <li key={idx} className="flex items-start gap-3">
+                      <Check className={`w-5 h-5 ${iconColor} flex-shrink-0 mt-0.5`} />
+                      <span className="text-gray-300">{feature}</span>
+                    </li>
+                  );
+                })}
               </ul>
 
               <button 
