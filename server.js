@@ -81,8 +81,10 @@ app.post('/api/create-checkout', async (req, res) => {
     }
 
     const prices = {
-      '6months': { amount: 39700, description: 'Plano 6 Meses - Re-Journey' },
-      '12months': { amount: 79700, description: 'Plano 12 Meses - Re-Journey' },
+      'monthly': { amount: 2900, description: 'Plano Mensal - Re-Journey' },
+      'quarterly': { amount: 7400, description: 'Plano Trimestral - Re-Journey' },
+      'semiannual': { amount: 12900, description: 'Plano Semestral - Re-Journey' },
+      'annual': { amount: 20900, description: 'Plano Anual - Re-Journey' },
     };
 
     const selectedPrice = prices[plan];

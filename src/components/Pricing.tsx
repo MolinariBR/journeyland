@@ -21,7 +21,7 @@ export const Pricing = () => {
     'Suporte prioritário'
   ];
 
-  const handleCheckout = async (plan: '6months' | '12months') => {
+  const handleCheckout = async (plan: 'monthly' | 'quarterly' | 'semiannual' | 'annual') => {
     setLoadingPlan(plan);
     try {
       const response = await fetch('/api/create-checkout', {
@@ -38,10 +38,17 @@ export const Pricing = () => {
 
       if (data.url) {
         // Track conversion event (placeholder for future analytics)
+        const planPrices = {
+          monthly: 29,
+          quarterly: 74,
+          semiannual: 129,
+          annual: 209
+        };
+        
         if (typeof window !== 'undefined' && (window as any).gtag) {
           (window as any).gtag('event', 'begin_checkout', {
             currency: 'BRL',
-            value: plan === '6months' ? 397 : 797,
+            value: planPrices[plan],
             items: [{ item_name: `Re-Journey ${plan}` }]
           });
         }
@@ -66,80 +73,132 @@ export const Pricing = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {/* 6 Months Plan */}
-            <div className="bg-[#161616] border border-[#1F1F1F] rounded-xl p-8 hover:border-gray-700 transition-all">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+            {/* Monthly Plan */}
+            <div className="bg-[#161616] border border-[#1F1F1F] rounded-xl p-6 hover:border-gray-700 transition-all">
               <div className="mb-6">
-                <h3 className="text-2xl font-bold text-[#F5F5F5] mb-2">Plano 6 Meses</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl text-gray-500 line-through">R$ 500</span>
-                </div>
+                <h3 className="text-xl font-bold text-[#F5F5F5] mb-2">Plano Mensal</h3>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-4xl font-bold text-white">R$ 397</span>
-                  <span className="text-gray-500">/semestre</span>
+                  <span className="text-3xl font-bold text-white">R$ 29</span>
+                  <span className="text-gray-500">/mês</span>
                 </div>
-                <p className="text-sm text-green-400 mt-2">Economia de R$ 103 • Assinando hoje</p>
+                <p className="text-sm text-gray-400 mt-2">Flexibilidade total</p>
               </div>
 
-              <ul className="space-y-4 mb-8">
-                {features6.map((feature, idx) => {
-                  const iconColor = (feature === 'Suporte prioritário' || feature === 'Grupo Exclusivo') ? 'text-yellow-400' : 'text-green-500';
-                  return (
-                    <li key={idx} className="flex items-start gap-3">
-                      <Check className={`w-5 h-5 ${iconColor} flex-shrink-0 mt-0.5`} />
-                      <span className="text-gray-300">{feature}</span>
-                    </li>
-                  );
-                })}
+              <ul className="space-y-3 mb-6">
+                {baseFeatures.slice(0, 4).map((feature, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-300 text-sm">{feature}</span>
+                  </li>
+                ))}
               </ul>
 
               <button 
-                onClick={() => handleCheckout('6months')}
-                disabled={loadingPlan === '6months'}
-                className="w-full py-4 bg-[#E0E0E0] text-[#121212] font-semibold rounded-lg hover:bg-white transition-all disabled:opacity-50"
+                onClick={() => handleCheckout('monthly')}
+                disabled={loadingPlan === 'monthly'}
+                className="w-full py-3 bg-[#E0E0E0] text-[#121212] font-semibold rounded-lg hover:bg-white transition-all disabled:opacity-50 text-sm"
               >
-                {loadingPlan === '6months' ? 'Redirecionando...' : 'Começar Agora'}
+                {loadingPlan === 'monthly' ? 'Redirecionando...' : 'Começar Agora'}
               </button>
             </div>
 
-            {/* 12 Months Plan - Popular */}
-            <div className="bg-[#161616] border-2 border-gray-600 rounded-xl p-8 relative hover:border-gray-500 transition-all">
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <span className="bg-gradient-to-r from-gray-600 to-gray-700 text-white text-xs font-bold px-4 py-1 rounded-full">
+            {/* Quarterly Plan */}
+            <div className="bg-[#161616] border border-[#1F1F1F] rounded-xl p-6 hover:border-gray-700 transition-all">
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-[#F5F5F5] mb-2">Plano Trimestral</h3>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-bold text-white">R$ 74</span>
+                  <span className="text-gray-500">/trimestre</span>
+                </div>
+                <p className="text-sm text-green-400 mt-2">15% economia • R$ 24,66/mês</p>
+              </div>
+
+              <ul className="space-y-3 mb-6">
+                {baseFeatures.slice(0, 5).map((feature, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-300 text-sm">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <button 
+                onClick={() => handleCheckout('quarterly')}
+                disabled={loadingPlan === 'quarterly'}
+                className="w-full py-3 bg-[#E0E0E0] text-[#121212] font-semibold rounded-lg hover:bg-white transition-all disabled:opacity-50 text-sm"
+              >
+                {loadingPlan === 'quarterly' ? 'Redirecionando...' : 'Começar Agora'}
+              </button>
+            </div>
+
+            {/* Semiannual Plan */}
+            <div className="bg-[#161616] border-2 border-gray-600 rounded-xl p-6 relative hover:border-gray-500 transition-all">
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                <span className="bg-gradient-to-r from-gray-600 to-gray-700 text-white text-xs font-bold px-3 py-1 rounded-full">
                   MAIS POPULAR
                 </span>
               </div>
 
               <div className="mb-6">
-                <h3 className="text-2xl font-bold text-[#F5F5F5] mb-2">Plano 12 Meses</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl text-gray-500 line-through">R$ 1.000</span>
-                </div>
+                <h3 className="text-xl font-bold text-[#F5F5F5] mb-2">Plano Semestral</h3>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-4xl font-bold text-white">R$ 797</span>
-                  <span className="text-gray-500">/ano</span>
+                  <span className="text-3xl font-bold text-white">R$ 129</span>
+                  <span className="text-gray-500">/semestre</span>
                 </div>
-                <p className="text-sm text-green-400 mt-2">Economia de R$ 203 • Assinando hoje</p>
+                <p className="text-sm text-green-400 mt-2">25% economia • R$ 21,50/mês</p>
               </div>
 
-              <ul className="space-y-4 mb-8">
-                {features12.map((feature, idx) => {
+              <ul className="space-y-3 mb-6">
+                {features6.map((feature, idx) => {
                   const iconColor = (feature === 'Suporte prioritário' || feature === 'Grupo Exclusivo') ? 'text-yellow-400' : 'text-green-500';
                   return (
-                    <li key={idx} className="flex items-start gap-3">
-                      <Check className={`w-5 h-5 ${iconColor} flex-shrink-0 mt-0.5`} />
-                      <span className="text-gray-300">{feature}</span>
+                    <li key={idx} className="flex items-start gap-2">
+                      <Check className={`w-4 h-4 ${iconColor} flex-shrink-0 mt-0.5`} />
+                      <span className="text-gray-300 text-sm">{feature}</span>
                     </li>
                   );
                 })}
               </ul>
 
               <button 
-                onClick={() => handleCheckout('12months')}
-                disabled={loadingPlan === '12months'}
-                className="w-full py-4 bg-white text-[#121212] font-semibold rounded-lg hover:bg-gray-200 transition-all shadow-lg disabled:opacity-50"
+                onClick={() => handleCheckout('semiannual')}
+                disabled={loadingPlan === 'semiannual'}
+                className="w-full py-3 bg-white text-[#121212] font-semibold rounded-lg hover:bg-gray-200 transition-all shadow-lg disabled:opacity-50 text-sm"
               >
-                {loadingPlan === '12months' ? 'Redirecionando...' : 'Começar Agora'}
+                {loadingPlan === 'semiannual' ? 'Redirecionando...' : 'Começar Agora'}
+              </button>
+            </div>
+
+            {/* Annual Plan */}
+            <div className="bg-[#161616] border border-[#1F1F1F] rounded-xl p-6 hover:border-gray-700 transition-all">
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-[#F5F5F5] mb-2">Plano Anual</h3>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-bold text-white">R$ 209</span>
+                  <span className="text-gray-500">/ano</span>
+                </div>
+                <p className="text-sm text-green-400 mt-2">40% economia • R$ 17,42/mês</p>
+              </div>
+
+              <ul className="space-y-3 mb-6">
+                {features12.map((feature, idx) => {
+                  const iconColor = (feature === 'Suporte prioritário' || feature === 'Grupo Exclusivo') ? 'text-yellow-400' : 'text-green-500';
+                  return (
+                    <li key={idx} className="flex items-start gap-2">
+                      <Check className={`w-4 h-4 ${iconColor} flex-shrink-0 mt-0.5`} />
+                      <span className="text-gray-300 text-sm">{feature}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <button 
+                onClick={() => handleCheckout('annual')}
+                disabled={loadingPlan === 'annual'}
+                className="w-full py-3 bg-[#E0E0E0] text-[#121212] font-semibold rounded-lg hover:bg-white transition-all disabled:opacity-50 text-sm"
+              >
+                {loadingPlan === 'annual' ? 'Redirecionando...' : 'Começar Agora'}
               </button>
             </div>
           </div>
